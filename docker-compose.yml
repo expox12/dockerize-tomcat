@@ -1,0 +1,62 @@
+version: '3'
+services:
+  tomcat:
+    image: tomcat:alpine
+    container_name: appserver
+    hostname: appserver
+    environment:
+      - DATABASE_SERVER=postgresql
+    expose:
+      - "8080"
+    volumes:
+      - ./tomcat_config/tomcat-users.xml:/usr/local/tomcat/conf/tomcat-users.xml:ro
+      - ./tomcat_config/context.xml:/usr/local/tomcat/conf/Catalina/localhost/manager.xml:ro
+      - ./tomcat_config/context.xml:/usr/local/tomcat/conf/Catalina/localhost/host-manager.xml:ro
+      - ./tomcat_config/server.xml:/usr/local/tomcat/conf/server.xml
+      - ./tomcat_config/web.xml:/usr/local/tomcat/webapps/manager/WEB-INF/web.xml
+    networks:
+      - proxy_network
+      - service_network
+    restart: always
+
+  postgresql:
+    image: postgres:12.4-alpine
+    container_name: database
+    hostname: postgresql
+    environment:
+      - POSTGRES_PASSWORD=admin
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data  
+    networks:
+      - service_network
+    restart: always
+  
+  proxy:
+    image: nginx:1.19.3
+    container_name: proxy
+    hostname: proxy
+    environment:
+      - TOMCAT_SERVER=tomcat:8080
+      - NGINX_PORT=80
+    ports:
+      - "8000:80"
+    volumes:
+      - ./nginx_config/templates:/etc/nginx/templates/:ro
+    networks:
+      - proxy_network
+    restart: always
+
+volumes:
+  db-data:
+    name: db-shared-data
+    driver_opts:
+      type: none
+      o: bind
+      device: ~/Documentos/postgresql-data/data
+networks:
+  service_network:
+    driver: bridge
+  proxy_network:
+    driver: bridge
